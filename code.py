@@ -50,23 +50,30 @@ def shuffle_deck(deck):
 
 # --- Draw a card ---
 def draw_card(group, rank, suit, x, y):
-    # opening bracket
     group.append(label.Label(terminalio.FONT, text="[", color=0xFFFFFF, x=x, y=y))
-    # rank
     group.append(label.Label(terminalio.FONT, text=rank, color=0xFFFFFF, x=x+6, y=y))
-    # suit bitmap
-    bmp = suits_bmp[suit]
-    group.append(displayio.TileGrid(bmp, pixel_shader=bmp.pixel_shader, x=x+12, y=y-4))
-    # closing bracket
-    group.append(label.Label(terminalio.FONT, text="]", color=0xFFFFFF, x=x+20, y=y))
-    return x + 24  # next card position
+    bmp = None
+    if suit is not None: bmp = suits_bmp[suit]
+
+    if rank == "10":
+        if bmp is not None: group.append(displayio.TileGrid(bmp, pixel_shader=bmp.pixel_shader, x=x+18, y=y-4))
+        group.append(label.Label(terminalio.FONT, text="]", color=0xFFFFFF, x=x+26, y=y))
+        return x + 30  # next card position
+    else:
+        if bmp is not None: group.append(displayio.TileGrid(bmp, pixel_shader=bmp.pixel_shader, x=x+12, y=y-4))
+        group.append(label.Label(terminalio.FONT, text="]", color=0xFFFFFF, x=x+20, y=y))
+        return x + 24  # next card position
 
 # --- Draw a hand ---
-def draw_hand(prefix, cards, y, max_cards_per_row=8):
+def draw_hand(prefix, cards, y, max_cards_per_row=2):
     group = displayio.Group()
     x = 5
     # prefix
-    group.append(label.Label(terminalio.FONT, text=prefix, color=0xFFFFFF, x=x, y=y))
+    if prefix == "Dealer: ":
+        color = 0xFFAAAA
+    else:
+        color = 0xAAAAFF
+    group.append(label.Label(terminalio.FONT, text=prefix, color=color, x=x, y=y))
     x += len(prefix)*6
     count = 0
     for c in cards:
@@ -76,8 +83,15 @@ def draw_hand(prefix, cards, y, max_cards_per_row=8):
         if count >= max_cards_per_row:
             count = 0
             y += 12
-            x = 5
+            x = len(prefix)*6 +5
     return group, y+12
+
+# --- Draw Screen from group ---
+def draw_screen(group):
+    group.append(label.Label(terminalio.FONT, text=f"Total Wins: {current_wins}", color=0xAAFFAA, x=5, y=120))
+    display.root_group = group
+    
+current_wins = 0
 
 # --- Main game loop ---
 while True:
@@ -96,8 +110,9 @@ while True:
     y = 10
     group.append(label.Label(terminalio.FONT, text="Blackjack on da Sprig", color=0xAAFFAA, x=5, y=y))
     y += 12
-    group.append(label.Label(terminalio.FONT, text="Dealer:", color=0xFFFFFF, x=5, y=y))
-    group.append(label.Label(terminalio.FONT, text="[??][??]", color=0xAAAAAA, x=54, y=y))
+    group.append(label.Label(terminalio.FONT, text="Dealer:", color=0xFFAAAA, x=5, y=y))
+    card_x = draw_card(group, dealer_cards[0].split(" ")[0], dealer_cards[0].split(" ")[1], 54, y)
+    card_x = draw_card(group, "??", None, card_x, y)
     y += 12
     hand_group, y = draw_hand("Player: ", player_cards, y)
     group.append(hand_group)
@@ -105,7 +120,7 @@ while True:
     y+= 24
     group.append(label.Label(terminalio.FONT, text="D = Hit  J = Stand", color=0xAAAAAA, x=5, y=y))
     group.append(label.Label(terminalio.FONT, text="K = Restart after win/loss", color=0xAAAAAA, x=5, y=y+12))
-    display.root_group = group
+    draw_screen(group)
     time.sleep(1)
 
     player_sum = calculate_hand(player_cards)
@@ -119,12 +134,14 @@ while True:
             y = 10
             group.append(label.Label(terminalio.FONT, text="Player hits!", color=0xFFFFFF, x=5, y=y))
             y += 12
-            group.append(label.Label(terminalio.FONT, text="Dealer: [??] [??]", color=0xFFFFFF, x=5, y=y))
+            group.append(label.Label(terminalio.FONT, text="Dealer:", color=0xFFAAAA, x=5, y=y))
+            card_x = draw_card(group, dealer_cards[0].split(" ")[0], dealer_cards[0].split(" ")[1], 54, y)
+            card_x = draw_card(group, "??", None, card_x, y)
             y += 12
             hand_group, y = draw_hand("Player: ", player_cards, y)
             group.append(hand_group)
             group.append(label.Label(terminalio.FONT, text=f"Player sum: {player_sum}", color=0xAAAAFF, x=5, y=y))
-            display.root_group = group
+            draw_screen(group)
             time.sleep(0.5)
             if player_sum > 21:
                 result = "Player busts! Dealer wins! Press K to restart"
@@ -136,16 +153,17 @@ while True:
     if player_sum > 21:
         group = displayio.Group()
         y = 10
-        group.append(label.Label(terminalio.FONT, text="Dealer:", color=0xFFFFFF, x=5, y=y))
-        group.append(label.Label(terminalio.FONT, text=f"[??][??]", color=0xFFFFFF, x=54, y=y))
+        group.append(label.Label(terminalio.FONT, text="Dealer:", color=0xFFAAAA, x=5, y=y))
+        card_x = draw_card(group, dealer_cards[0].split(" ")[0], dealer_cards[0].split(" ")[1], 54, y)
+        card_x = draw_card(group, "??", None, card_x, y)
         y += 12
         hand_group, y = draw_hand("Player: ", player_cards, y)
         group.append(hand_group)
         group.append(label.Label(terminalio.FONT, text=f"Player sum: {player_sum}", color=0xAAAAFF, x=5, y=y))
-        y += 12
+        y += 12  
         group.append(label.Label(terminalio.FONT, text=result, color=0xFFAAAA, x=5, y=y))
         group.append(label.Label(terminalio.FONT, text="Press K to restart", color=0xAAAAAA, x=5, y=y+12))
-        display.root_group = group
+        draw_screen(group)
 
         while buttons["K"].value:
             pass
@@ -163,7 +181,7 @@ while True:
         group.append(hand_group)
         hand_group2, y = draw_hand("Player: ", player_cards, y)
         group.append(hand_group2)
-        display.root_group = group
+        draw_screen(group)
         time.sleep(0.5)
 
     # --- Determine result ---
@@ -187,6 +205,7 @@ while True:
     y += 12
     result_color = 0xFFFFFF
     if result == "Player wins!":
+        current_wins += 1
         result_color = 0xAAFFAA
     elif result == "Dealer wins!":
         result_color = 0xFFAAAA
@@ -195,7 +214,7 @@ while True:
 
     group.append(label.Label(terminalio.FONT, text=result, color=result_color, x=5, y=y))
     group.append(label.Label(terminalio.FONT, text="Press K to restart", color=0xAAAAAA, x=5, y=y+12))
-    display.root_group = group
+    draw_screen(group)
 
     while buttons["K"].value:
         pass
